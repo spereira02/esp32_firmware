@@ -3,24 +3,36 @@
 
 static const char *TAG = "IMU_DRIVER";
 
-esp_err_t icm20948_init(i2c_master_bus_handle_t bus_handle, i2c_master_dev_handle_t *icm_handle, i2c_master_dev_handle_t *mag_handle) {
-    // 1. Add ICM-20948 to the bus
+esp_err_t icm20948_init(i2c_master_bus_handle_t bus_handle,
+    i2c_master_dev_handle_t *icm_handle, 
+    i2c_master_dev_handle_t *mag_handle) {
+    
+    // Add ICM-20948 to the bus
     i2c_device_config_t icm_cfg = { .dev_addr_length = I2C_ADDR_BIT_LEN_7, .device_address = ICM20948_ADDR, .scl_speed_hz = 400000 };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &icm_cfg, icm_handle));
 
-    // 2. Wake up & Reset Bank 0
+    // Wake up chip from idle mode & Reset Bank 0
     uint8_t wake_cmd[] = {REG_PWR_MGMT_1, 0x01}; // Bit 0: Auto-select clock
     i2c_master_transmit(*icm_handle, wake_cmd, 2, -1);
 
-    // 3. Enable Bypass Mode so we can see the Magnetometer
+    /* Configure Low-Pass Filters for cleaner data, using a lowpass filter built into chip
+    // DLPF Modes: 0=196.6Hz, 1=151.8Hz, 2=119.5Hz, 3=51.2Hz, 4=23.9Hz, 5=11.6Hz, 6=5.7Hz
+    // Mode 4 (23.9Hz) gives good noise filtering at 50Hz sampling rate */
+    uint8_t accel_filter[] = {REG_ACCEL_CONFIG, 0x04};  
+    i2c_master_transmit(*icm_handle, accel_filter, 2, -1);
+
+    uint8_t gyro_filter[] = {REG_GYRO_CONFIG, 0x04};   
+    i2c_master_transmit(*icm_handle, gyro_filter, 2, -1);
+
+    // Enable Bypass Mode so we can see the Magnetometer
     uint8_t bypass_cmd[] = {REG_INT_PIN_CFG, 0x02}; 
     i2c_master_transmit(*icm_handle, bypass_cmd, 2, -1);
 
-    // 4. Add Magnetometer to the bus
+    // Add Magnetometer to the bus
     i2c_device_config_t mag_cfg = { .dev_addr_length = I2C_ADDR_BIT_LEN_7, .device_address = MAG_AK09916_ADDR, .scl_speed_hz = 400000 };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &mag_cfg, mag_handle));
 
-    // 5. Set Magnetometer to 100Hz Continuous Mode
+    // Set Magnetometer to 100Hz Continuous Mode
     uint8_t mag_mode_cmd[] = {REG_MAG_CNTL2, 0x08}; // Mode 4: 100Hz
     i2c_master_transmit(*mag_handle, mag_mode_cmd, 2, -1);
 
@@ -50,7 +62,7 @@ esp_err_t imu_read_all(i2c_master_dev_handle_t icm_h, i2c_master_dev_handle_t ma
     uint8_t mag_buf[9];
     uint8_t reg;
 
-    // Burst Read Accel/Gyro (12 bytes) Accel: 3 axes, Gyro: 3 axes 16bits into 2 * 8bits = registers
+    // Burst Read Accel/Gyro (12 bytes) Accel: 3 axes, Gyro: 3 axes. Each reading contains 16bits, to store its split into 2 * 8bits = 2 registers per reading
     reg = REG_ACCEL_XOUT_H;
     i2c_master_transmit_receive(icm_h, &reg, 1, icm_buf, 12, -1);
 
