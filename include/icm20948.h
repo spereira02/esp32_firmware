@@ -25,7 +25,7 @@
 typedef struct {
     float ax, ay, az; // m/s^2
     float gx, gy, gz; // rad/s
-    float mx, my, mz; // uT
+    float mx, my, mz; // T
 } imu_reading_t;
 
 // Function Prototypes
