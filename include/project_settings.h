@@ -2,7 +2,8 @@
 #define PROJECT_SETTINGS_H
 
 // Global settings
+#define WIFI_SSID           "Your_WiFi_SSID"
+#define WIFI_PASS           "Your_WiFi_PASSWORD"
 #define ROS_NAMESPACE       "imu_node"
-#define ROS_DOMAIN_ID       0 // Default ROS 2 Domain ID
 
 #endif
