@@ -2,23 +2,16 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "icm20948.h"
+#include "project_settings.h"
 
 void imu_task(void *pvParameters) {
-    i2c_master_bus_config_t bus_cfg = {
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .i2c_port = I2C_NUM_0,
-        .scl_io_num = 22, //  SCL Pin (serial clock pin)
-        .sda_io_num = 21, //  SDA Pin (serial data pin)
-        .glitch_ignore_cnt = 7,
-    };
-    /**  Initialize new master bus, i2c_new_master_bus init a new bus driver using the bus_cfg 
-    * config at bus_handle. With ESP_ERROR_CHECK we chekcs if init was successfull
-    * if not successfull halt program*/
-    i2c_master_bus_handle_t bus_handle;
-    ESP_ERROR_CHECK(i2c_new_master_bus(&bus_cfg, &bus_handle));
-
     i2c_master_dev_handle_t icm_h, mag_h;
-    icm20948_init(bus_handle, &icm_h, &mag_h);
+    
+    // Initialize IMU, this handles the I2C bus creation internally
+    if (icm20948_init(&icm_h, &mag_h) != ESP_OK) {
+        printf("Failed to initialize IMU. Suspending task.\n");
+        vTaskSuspend(NULL);
+    }
 
     imu_reading_t imu_data;
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -35,6 +28,17 @@ void imu_task(void *pvParameters) {
     }
 }
 
+void micro_ros_task(void *pvParameters) {
+    // Placeholder for micro-ROS logic.
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
 void app_main(void) {
+    // Hardware Task (Producer) Priority 5
     xTaskCreate(imu_task, "imu_task", 4096, NULL, 5, NULL);
+    
+    // micro-ROS Task (Consumer) Priority 4
+    xTaskCreate(micro_ros_task, "micro_ros_task", 8192, NULL, 4, NULL);
 }

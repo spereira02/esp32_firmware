@@ -4,6 +4,10 @@
 
 #include "driver/i2c_master.h"
 
+// Define the I2C pins for encapsulation
+#define ICM20948_SCL_PIN    22
+#define ICM20948_SDA_PIN    21
+
 // I2C Addresses. Accel&Gyro live on the icm, magnetometer lives on external chip, AK09916
 #define ICM20948_ADDR       0x68
 #define MAG_AK09916_ADDR    0x0C
@@ -26,11 +30,11 @@ typedef struct {
     float mx, my, mz; // T
 } imu_reading_t;
 
-
+// Modified signature: it creates its own bus internally or uses an existing one
 esp_err_t icm20948_init(
-    i2c_master_bus_handle_t bus_handle, 
     i2c_master_dev_handle_t *icm_handle, 
     i2c_master_dev_handle_t *mag_handle);
+
 esp_err_t imu_read_all(
     i2c_master_dev_handle_t icm_h, 
     i2c_master_dev_handle_t mag_h, 

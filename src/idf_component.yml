@@ -1,3 +1,0 @@
-dependencies:
-  espp/icm20948:
-    version: "~1.0.35"
