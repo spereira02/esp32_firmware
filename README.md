@@ -60,6 +60,8 @@ Typical output: /dev/ttyUSB0
 
 Execute the agent in serial mode. Ensure the baud rate matches your firmware configuration (default: 115200).
 ```bash
+source /opt/ros/jazzy/setup.bash
+source install/local_setup.bash
 
 ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0
 ```
