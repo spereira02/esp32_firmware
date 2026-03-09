@@ -113,7 +113,7 @@ void micro_ros_task(void *pvParameters) {
         RCCHECK(rclc_publisher_init_default(
             &imu_pub, &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
-            "imu/acc_gyro"));
+            "imu/data_raw"));
         RCCHECK(rclc_publisher_init_default(
             &mag_pub, &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, MagneticField),
