@@ -34,8 +34,8 @@ source install/local_setup.bash
 Verify installation:
 ```bash
 ros2 pkg list | grep micro_ros_agent
-2. Configure Serial Permissions
 ```
+2. Configure Serial Permissions
 
 To access serial devices without root privileges, add the current user to the dialout group.
 ```bash
