@@ -65,7 +65,7 @@ esp_err_t imu_read_all(i2c_master_dev_handle_t icm_h, i2c_master_dev_handle_t ma
     reg = REG_ACCEL_XOUT_H;
     i2c_master_transmit_receive(icm_h, &reg, 1, icm_buf, 12, -1);
 
-    // Burst Read Mag (9 bytes: ST1 + 6 Data + ST2)
+    // Burst Read Mag (9 bytes: ST1 + 6 Data + ST2) Big endian notation for gyro and acc. Since each mesurement is split into 2 registers, we have to stich them back together
     reg = REG_MAG_ST1;
     i2c_master_transmit_receive(mag_h, &reg, 1, mag_buf, 9, -1);
 
