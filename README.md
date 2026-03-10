@@ -1,5 +1,26 @@
-# esp32_firmware
-Integrated an ICM-20948 9-axis sensor via I2C (400kHz) using a custom FreeRTOS task. Implemented register-bank switching and power management for high-stability raw data streaming, targeting ROS 2 Jazzy integration on a Raspberry Pi 5.
+## Overview
+
+How does raw sensor data become meaningful robot state?
+
+Modern robotics systems are built as pipelines: sensors produce raw measurements, embedded firmware collects and streams them, and higher-level software performs estimation and visualization.
+
+This repository implements the **embedded layer** of that pipeline.
+
+It interfaces an **ICM-20948 9-axis IMU** with an **ESP32** over **I²C**, performs low-level device configuration, and continuously reads accelerometer, gyroscope, and magnetometer measurements inside a dedicated **FreeRTOS task**.
+
+The firmware handles tasks such as:
+
+- IMU register configuration and bank switching  
+- power-management setup for stable measurements  
+- continuous sensor polling and scaling of raw data  
+- streaming IMU data toward a ROS 2 system using **micro-ROS**
+
+The goal is to provide a reliable hardware interface that can feed sensor data into a distributed robotics stack.
+
+This repository therefore represents **Step 1 of a complete IMU processing pipeline**.
+
+➡️ The full system — including ROS 2 integration, sensor fusion using the **Madgwick filter**, and RViz visualization — is documented in the main project repository:  
+**[https://github.com/spereira02/Fullstack_imu_filter]**
 
 
 # micro-ROS Serial Agent Setup (ESP32 → ROS 2)
