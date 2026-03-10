@@ -59,17 +59,28 @@ void imu_task(void *pvParameters) {
 void timer_callback(rcl_timer_t * timer, int64_t last_call_time) {
     imu_reading_t local_data;
 
-    // Pull the latest data from the mailbox
     if (xQueueReceive(imu_mailbox, &local_data, 0) == pdTRUE) {
         
-        // 1. GENERATE TIMESTAMP
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
         
-        // 2. FILL IMU MSG
+        /* Now the sensor_msgs/msg/Imu is populated with the measured values
+        *  Note: since the IMU doesnt produce values for the orientation we set the quat values x=y=z=0
+        *  and w = 1 to fullfill the quat arg. The 0th entry of the covarinace matrix is set to -1 to signal that the orientaion 
+        *  is unkknown. The orientation will be later calculated with the measurements of the IMU
+        */
+        imu_msg.orientation.x = 0.0;
+        imu_msg.orientation.y = 0.0;
+        imu_msg.orientation.z = 0.0;
+        imu_msg.orientation.w = 1.0;
+
+        imu_msg.orientation_covariance[0] = -1.0;
+
         imu_msg.header.stamp.sec = ts.tv_sec;
         imu_msg.header.stamp.nanosec = ts.tv_nsec;
-        imu_msg.header.frame_id.data = (char*)"imu_link";
+        imu_msg.header.frame_id.data = "imu_link";
+        imu_msg.header.frame_id.size = strlen("imu_link");
+        imu_msg.header.frame_id.capacity = imu_msg.header.frame_id.size + 1;
 
         imu_msg.linear_acceleration.x = local_data.ax;
         imu_msg.linear_acceleration.y = local_data.ay;
@@ -83,7 +94,7 @@ void timer_callback(rcl_timer_t * timer, int64_t last_call_time) {
         mag_msg.magnetic_field.y = local_data.my;
         mag_msg.magnetic_field.z = local_data.mz;
 
-        // 4. PUBLISH
+        // publish topics
         rcl_publish(&imu_pub, &imu_msg, NULL);
         rcl_publish(&mag_pub, &mag_msg, NULL);
     }
@@ -141,6 +152,9 @@ void micro_ros_task(void *pvParameters) {
 }
 
 void app_main(void) {
+    sensor_msgs__msg__Imu__init(&imu_msg);
+    sensor_msgs__msg__MagneticField__init(&mag_msg);
+
     ESP_ERROR_CHECK(esp_netif_init());
     imu_mailbox = xQueueCreate(1, sizeof(imu_reading_t));
     xTaskCreate(imu_task, "imu_task", 4096, NULL, 5, NULL);
