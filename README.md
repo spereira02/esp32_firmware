@@ -17,6 +17,16 @@ The firmware handles tasks such as:
 
 The goal is to provide a reliable hardware interface that can feed sensor data into a distributed robotics stack.
 
+## System Architecture
+
+<p align="center">
+  <img src="docs/architecture.png" width="850"/>
+</p>
+
+<p align="center">
+End-to-end IMU data pipeline: an ESP32 reads an ICM-20948 sensor via I²C, publishes measurements through a micro-ROS client over serial (XRCE-DDS), and a ROS 2 system performs orientation estimation using the Madgwick filter and visualizes the result in RViz.
+</p>
+
 This repository therefore represents **Step 1 of a complete IMU processing pipeline**.
 
 ➡️ The full system — including ROS 2 integration, sensor fusion using the **Madgwick filter**, and RViz visualization — is documented in the main project repository:  
