@@ -1,7 +1,7 @@
 .pio/
 .vscode/
 build/
-sdkconfig
-sdkconfig.old
+sdkconfig*
+sdkconfig.old*
 *.bin
 *.elf.pio

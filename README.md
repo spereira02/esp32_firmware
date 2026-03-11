@@ -32,7 +32,8 @@ This repository therefore represents **Step 1 of a complete IMU processing pipel
 ➡️ The full system — including ROS 2 integration, sensor fusion using the **Madgwick filter**, and RViz visualization — is documented in the main project repository:  
 **[https://github.com/spereira02/Fullstack_imu_filter]**
 
-
+# micro-Ros as a esp-idf component
+Examples and tutorials on how to create a micro ros task can be found here **[https://github.com/micro-ROS/micro_ros_espidf_component]**
 # micro-ROS Serial Agent Setup (ESP32 → ROS 2)
 
 This guide outlines the deployment of the micro-ROS Agent to bridge communication between the ESP32 client and the ROS 2 computational graph via serial transport.

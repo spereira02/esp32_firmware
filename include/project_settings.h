@@ -4,4 +4,6 @@
 // Global settings
 #define ROS_NAMESPACE       "imu_node"
 
+#define IMU_TASK_PERIOD_MS 20
+
 #endif
