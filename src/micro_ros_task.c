@@ -42,7 +42,7 @@ static void timer_callback(rcl_timer_t * timer, int64_t last_call_time) {
     (void) last_call_time;
     imu_reading_t local_data;
 
-    if (xQueueReceive(imu_queue, &local_data, 0) == pdTRUE) {
+    if (xQueuePeek(imu_queue, &local_data, 0) == pdTRUE) {
         
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
@@ -107,15 +107,15 @@ void micro_ros_task(void *pvParameters) {
         printf("Waiting for micro-ROS agent...\n");
 
         RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
-        RCCHECK(rclc_node_init_default(&node, "esp32_imu_node", "", &support));
+        RCCHECK(rclc_node_init_default(&node, ESP_NODE, "", &support));
         RCCHECK(rclc_publisher_init_default(
             &imu_pub, &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
-            "imu/data_raw"));
+            IMU_TOPIC));
         RCCHECK(rclc_publisher_init_default(
             &mag_pub, &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, MagneticField),
-            "imu/mag"));
+            MAG_TOPIC));
         RCCHECK(rclc_timer_init_default2(&timer, &support, RCL_MS_TO_NS(IMU_TASK_PERIOD_MS), timer_callback, true));
         RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
         RCCHECK(rclc_executor_add_timer(&executor, &timer));
@@ -134,10 +134,10 @@ void micro_ros_task(void *pvParameters) {
         cleanup:
             printf("Agent connection failed, retrying in 2s...\n");
             // Clean up before retrying
-            rcl_publisher_fini(&imu_pub, &node);
-            rcl_publisher_fini(&mag_pub, &node);
-            rcl_node_fini(&node);
-            rclc_support_fini(&support);
+            RCSOFTCHECK(rcl_publisher_fini(&imu_pub, &node));
+            RCSOFTCHECK(rcl_publisher_fini(&mag_pub, &node));
+            RCSOFTCHECK(rcl_node_fini(&node));
+            RCSOFTCHECK(rclc_support_fini(&support));
             vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
