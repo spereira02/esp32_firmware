@@ -31,100 +31,423 @@ This repository therefore represents **Step 1 of a complete IMU processing pipel
 
 ➡️ The full system — including ROS 2 integration, sensor fusion using the **Madgwick filter**, and RViz visualization — is documented in the main project repository:  
 **[https://github.com/spereira02/Fullstack_imu_filter]**
+## Firmware Architecture
 
-# micro-Ros as a esp-idf component
-Examples and tutorials on how to create a micro ros task can be found here **[https://github.com/micro-ROS/micro_ros_espidf_component]**
-# micro-ROS Serial Agent Setup (ESP32 → ROS 2)
+The firmware is structured as a **small real-time data pipeline** rather than a monolithic embedded program. Responsibilities are separated into modules to isolate hardware access, deterministic acquisition timing, and ROS communication.
 
-This guide outlines the deployment of the micro-ROS Agent to bridge communication between the ESP32 client and the ROS 2 computational graph via serial transport.
+Runtime data flow:
 
-> **Note:** This setup is validated for ROS 2 Jazzy. For other distributions, replace the `jazzy` keyword with your specific version (e.g., `humble`).
+```
+ICM-20948 IMU
+      │
+      ▼
+ICM20948 Driver (I²C)
+      │
+      ▼
+FreeRTOS IMU Task
+(sensor polling)
+      │
+      ▼
+Queue (latest sample)
+      │
+      ▼
+micro-ROS Task
+      │
+      ▼
+ROS 2 Topics
+```
+
+Two FreeRTOS tasks run concurrently.
+
+### IMU Acquisition Task
+
+Located in:
+
+```
+src/imu_task.c
+```
+
+Responsibilities:
+
+- initialize and configure the IMU  
+- periodically read accelerometer, gyroscope, and magnetometer data  
+- convert raw register values into engineering units  
+- write the newest sample into a shared queue  
+
+Sampling is performed using:
+
+```
+vTaskDelayUntil()
+```
+
+This ensures deterministic sampling intervals.
 
 ---
 
-## 1. Install the micro-ROS Agent
+### micro-ROS Communication Task
 
-The agent must be built within a dedicated ROS 2 workspace to manage the XRCE-DDS middleware.
+Located in:
+
+```
+src/micro_ros_task.c
+```
+
+Responsibilities:
+
+- initialize the micro-ROS client  
+- configure the serial transport  
+- create the ROS node and publishers  
+- run the `rclc` executor  
+- publish the newest IMU sample  
+
+Separating ROS communication from sensor polling prevents middleware behavior from disturbing hardware timing.
+
+---
+
+## Repository Structure
+
+```
+esp32_firmware/
+├── components/
+│   ├── icm20948/
+│   │   ├── icm20948.c
+│   │   └── include/icm20948.h
+│   └── micro_ros_espidf_component/
+│
+├── include/
+│   ├── project_settings.h
+│   ├── imu_task.h
+│   ├── micro_ros_task.h
+│   └── esp32_serial_transport.h
+│
+├── src/
+│   ├── main.c
+│   ├── imu_task.c
+│   ├── micro_ros_task.c
+│   └── esp32_serial_transport.c
+│
+└── platformio.ini
+```
+
+### Key Modules
+
+**IMU Driver**
+
+```
+components/icm20948/
+```
+
+Handles:
+
+- I²C communication  
+- sensor register configuration  
+- sensor data retrieval  
+- scaling raw measurements  
+
+---
+
+**FreeRTOS Tasks**
+
+```
+src/imu_task.c
+src/micro_ros_task.c
+```
+
+Responsible for acquisition and ROS communication.
+
+---
+
+**Serial Transport**
+
+```
+src/esp32_serial_transport.c
+```
+
+Implements the micro-ROS serial transport layer used by the XRCE-DDS middleware.
+
+---
+
+**Main Application**
+
+```
+src/main.c
+```
+
+Application entry point that initializes shared resources and launches the FreeRTOS tasks.
+
+---
+
+## Design Decisions
+
+### Latest-Sample Queue Instead of FIFO Buffer
+
+The IMU task writes to a queue of length **1**, which makes the queue behave as a **latest-value mailbox** rather than a deep history buffer.
+
+Advantages:
+
+- always keeps the newest sensor sample available  
+- prevents stale IMU measurements from accumulating  
+- keeps latency bounded  
+- minimizes memory usage  
+
+For live robotics telemetry, fresh sensor data is usually more valuable than preserving every intermediate sample.
+
+---
+
+### Decoupled Acquisition and Publishing Tasks
+
+Sensor sampling and ROS publication run in **separate FreeRTOS tasks**.
+
+This ensures:
+
+- IMU polling remains periodic and predictable  
+- communication failures do not disturb acquisition timing  
+- hardware-facing code remains isolated from middleware behavior  
+
+---
+
+### Raw Sensor Data Publishing
+
+The firmware publishes **raw IMU measurements**.
+
+Orientation estimation is intentionally handled in the ROS 2 layer using algorithms such as the **Madgwick filter**, where tuning and experimentation are easier.
+
+---
+
+## Build System
+
+The firmware is built using **PlatformIO** on top of **ESP-IDF**.
+
+PlatformIO manages:
+
+- ESP-IDF toolchain installation  
+- compilation and linking  
+- flashing firmware to the ESP32  
+- serial monitor integration  
+
+---
+
+## Installing Dependencies
+
+This project uses the **micro-ROS ESP-IDF component** as an external dependency.
+
+It is included as a **Git submodule** located in:
+
+```
+components/micro_ros_espidf_component
+```
+
+Clone the repository together with its submodules:
 
 ```bash
-# Create workspace and clone repository
-mkdir -p uros_ws/src && cd uros_ws/src
+git clone --recurse-submodules https://github.com/spereira02/esp32_firmware.git
+```
+
+If the repository was already cloned without submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+ESP-IDF automatically detects components located in the `components/` directory.
+
+---
+
+## Build and Flash
+
+Build the firmware:
+
+```bash
+pio run
+```
+
+Flash the firmware to the ESP32:
+
+```bash
+pio run --target upload
+```
+
+Open a serial monitor:
+
+```bash
+pio device monitor
+```
+
+---
+
+## micro-ROS Serial Agent Setup (ESP32 → ROS 2)
+
+This guide outlines how to deploy the **micro-ROS Agent**, which bridges communication between the ESP32 client and the ROS 2 graph via serial transport.
+
+> **Note**  
+> This setup is validated for **ROS 2 Jazzy**.  
+> For other ROS distributions replace `jazzy` with the corresponding version.
+
+---
+
+### 1. Install the micro-ROS Agent
+
+Create a workspace and clone the agent repository:
+
+```bash
+mkdir -p uros_ws/src
+cd uros_ws/src
 git clone -b jazzy https://github.com/micro-ROS/micro-ROS-Agent.git
 ```
 
-# Install dependencies
+Install dependencies:
+
 ```bash
 cd ..
 rosdep update
 rosdep install --from-paths src --ignore-src -r -y
 ```
-# Build and source environment
+
+Build the workspace:
+
 ```bash
 colcon build --symlink-install
 source install/local_setup.bash
-``` 
+```
+
 Verify installation:
+
 ```bash
 ros2 pkg list | grep micro_ros_agent
 ```
-2. Configure Serial Permissions
 
-To access serial devices without root privileges, add the current user to the dialout group.
+---
+
+### 2. Configure Serial Permissions
+
+Add your user to the `dialout` group:
+
 ```bash
-
 sudo usermod -a -G dialout $USER
 ```
 
-Important: You must log out and log back in (or reboot) for group changes to take effect. Verify with the groups command.
+Log out and back in for the change to take effect.
 
-3. Identify the ESP32 Serial Port
+Verify with:
 
-Connect the ESP32 and identify the assigned device node:
 ```bash
+groups
+```
 
+---
+
+### 3. Identify the ESP32 Serial Port
+
+Connect the ESP32 and run:
+
+```bash
 ls /dev/ttyUSB*
 ls /dev/ttyACM*
 ```
 
-Typical output: /dev/ttyUSB0
+Typical output:
 
-4. Start the micro-ROS Agent
+```
+/dev/ttyUSB0
+```
 
-Execute the agent in serial mode. Ensure the baud rate matches your firmware configuration (default: 115200).
+---
+
+### 4. Start the micro-ROS Agent
+
 ```bash
 source /opt/ros/jazzy/setup.bash
 source install/local_setup.bash
 
 ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0
 ```
-Synchronizing the Client
 
-Once the agent is active, press the RESET (RST) button on the ESP32 to establish the session.
+---
 
-Expected output:
+### 5. Synchronize the Client
 
-[info] Root.cpp | create_client | session established
-[info] ProxyClient.cpp | create_participant | participant created
-[info] ProxyClient.cpp | create_topic | topic created: /imu/acc_gyro
-[info] ProxyClient.cpp | create_datawriter | datawriter created
-5. Verify ROS 2 Telemetry
+Once the agent is running, press the **RST button on the ESP32** to establish the session.
 
-Open a new terminal, source your ROS 2 environment, and verify the data stream:
+Expected output resembles:
+
+```
+[info] session established
+[info] participant created
+[info] topic created
+[info] datawriter created
+```
+
+---
+
+### 6. Verify ROS 2 Telemetry
+
+Open a new terminal and source ROS:
+
 ```bash
 source /opt/ros/jazzy/setup.bash
+```
+
+List topics:
+
+```bash
 ros2 topic list
 ```
-Echo the IMU data stream:
+
+Example:
+
+```
+/imu/acc_gyro
+```
+
+Echo the IMU stream:
+
 ```bash
 ros2 topic echo /imu/acc_gyro
-Troubleshooting
 ```
-Baud Rate: If the session fails to establish, specify the baud rate explicitly:
-```bash
 
+---
+
+## Troubleshooting
+
+### Baud Rate
+
+If the session fails to establish, specify the baud rate explicitly:
+
+```bash
 ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 --baudrate 921600
 ```
 
-Port Access: Ensure no other serial monitors (Arduino IDE, etc.) are accessing the port.
+---
 
-Architecture: If deploying on Raspberry Pi 5, ensure uros_ws was built locally on the Pi to match the ARM64 architecture.
+### Serial Port Access
+
+Ensure no other programs (Arduino IDE, serial monitors, etc.) are accessing the port.
+
+---
+
+### Reset Requirement
+
+After starting the micro-ROS agent, press the **RST button on the ESP32** to establish the connection.
+
+---
+
+### Architecture Issues
+
+If deploying on a **Raspberry Pi 5**, ensure the `uros_ws` workspace was built locally on the Pi so the binaries match the ARM64 architecture.
+
+---
+
+## What This Project Demonstrates
+
+From an **embedded systems perspective**:
+
+- low-level I²C sensor integration  
+- ESP-IDF component-based firmware architecture  
+- FreeRTOS task scheduling and queue communication  
+- micro-ROS transport on a resource-constrained microcontroller  
+
+From a **robotics systems perspective**:
+
+- bridging embedded sensor data into a ROS 2 computation graph  
+- separating acquisition, transport, and estimation layers  
+- the embedded foundation of a complete IMU filtering pipeline  
