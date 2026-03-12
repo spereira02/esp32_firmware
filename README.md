@@ -396,28 +396,19 @@ ros2 topic list
 Example:
 
 ```
-/imu/acc_gyro
+/imu/data_raw
 ```
 
 Echo the IMU stream:
 
 ```bash
-ros2 topic echo /imu/acc_gyro
+ros2 topic echo /imu/data_raw
 ```
 
 ---
 
 ## Troubleshooting
 
-### Baud Rate
-
-If the session fails to establish, specify the baud rate explicitly:
-
-```bash
-ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 --baudrate 921600
-```
-
----
 
 ### Serial Port Access
 
