@@ -19,6 +19,7 @@
 #include "sensor_msgs/msg/magnetic_field.h"
 
 #include "rmw_microros/custom_transport.h"
+#include "rmw_microros/rmw_microros.h"
 #include "driver/uart.h"
 
 
@@ -127,7 +128,15 @@ void micro_ros_task(void *pvParameters) {
         * The timer triggers timer_callback() every IMU_TASK_PERIOD_MS (20 ms).
         */
         while (1) {
-            rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
+            rcl_ret_t rc =  rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
+            if (rc != RCL_RET_OK && rc != RCL_RET_TIMEOUT) {
+                printf("Executor spin failed: %d\n", (int) rc);
+                goto cleanup;
+            }
+            if (rmw_uros_ping_agent(20, 1) != RMW_RET_OK) {
+                printf("micro-ROS agent disconnected\n");
+                goto cleanup;
+            }
             vTaskDelay(pdMS_TO_TICKS(10));
         }
 

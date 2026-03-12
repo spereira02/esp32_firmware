@@ -6,28 +6,27 @@
 #define UART_RXD  3
 #define UART_RTS  UART_PIN_NO_CHANGE
 #define UART_CTS  UART_PIN_NO_CHANGE
-
-// --- micro-ROS Transports ---
+#define UART_BAUDRATE 115200
 #define UART_BUFFER_SIZE (512)
 
 bool esp32_serial_open(struct uxrCustomTransport * transport){
     size_t * uart_port = (size_t*) transport->args;
 
     uart_config_t uart_config = {
-        .baud_rate = 115200,
+        .baud_rate = UART_BAUDRATE,
         .data_bits = UART_DATA_8_BITS,
         .parity    = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
     };
 
-    if (uart_param_config(*uart_port, &uart_config) == ESP_FAIL) {
+    if (uart_param_config(*uart_port, &uart_config) != ESP_OK) {
         return false;
     }
-    if (uart_set_pin(*uart_port, UART_TXD, UART_RXD, UART_RTS, UART_CTS) == ESP_FAIL) {
+    if (uart_set_pin(*uart_port, UART_TXD, UART_RXD, UART_RTS, UART_CTS) != ESP_OK) {
         return false;
     }
-    if (uart_driver_install(*uart_port, UART_BUFFER_SIZE * 2, 0, 0, NULL, 0) == ESP_FAIL) {
+    if (uart_driver_install(*uart_port, UART_BUFFER_SIZE * 2, 0, 0, NULL, 0) != ESP_OK) {
         return false;
     }
 
