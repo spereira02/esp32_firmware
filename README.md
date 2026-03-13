@@ -1,3 +1,5 @@
+Part of the Fullstack IMU pipeline project:
+[**https://github.com/spereira02/Fullstack_imu_filter**]
 ## Overview
 
 How does raw sensor data become meaningful robot state?
