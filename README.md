@@ -201,6 +201,8 @@ Four connections are required to provide power and establish I²C communication 
 - SparkFun boards already include the required **I²C pull-up resistors**, so no additional hardware is required.
 - If using a different IMU breakout, verify that **GND is directly connected to ground** and not tied through a pull-up resistor.
 
+---
+
 ## Design Decisions
 
 ### Latest-Sample Queue Instead of FIFO Buffer
