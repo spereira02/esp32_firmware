@@ -216,6 +216,30 @@ Orientation estimation is intentionally handled in the ROS 2 layer using algorit
 
 ---
 
+## Wiring
+
+This setup uses the **SparkFun 9DoF IMU Breakout – ICM-20948** communicating with the **ESP32** via **I²C**.
+
+Four connections are required to provide power and establish I²C communication between the devices.
+
+### Connections
+
+| IMU (ICM-20948) | ESP32 |
+|-----------------|-------|
+| GND             | GND   |
+| VIN             | 3V3   |
+| SDA             | GPIO 21 (SDA) |
+| SCL             | GPIO 22 (SCL) |
+
+
+### Notes
+
+- The ESP32 operates at **3.3 V logic**, which is compatible with the SparkFun ICM-20948 breakout.
+- SparkFun boards already include the required **I²C pull-up resistors**, so no additional hardware is required.
+- If using a different IMU breakout, verify that **GND is directly connected to ground** and not tied through a pull-up resistor.
+
+
+
 ## Build System
 
 The firmware is built using **PlatformIO** on top of **ESP-IDF**.
