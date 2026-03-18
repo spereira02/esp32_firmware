@@ -435,6 +435,15 @@ ros2 topic echo /imu/data_raw
 
 ## Troubleshooting
 
+### Local Coordinate Frame
+
+The SparkFun **ICM-20948 9DoF IMU Breakout** has a coordinate frame engraved on the PCB that appears to follow the **NED (North-East-Down)** convention.
+
+However, when manually reading the sensor registers and verifying the axes through testing, the measured data did **not** match the expected NED orientation. Instead, the sensor outputs correspond to a **NWD (North-West-Down)** coordinate frame.
+
+This discrepancy became apparent during debugging when comparing physical IMU movements with the resulting axis readings.
+
+---
 
 ### Serial Port Access
 
