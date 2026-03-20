@@ -22,6 +22,9 @@
 #include "rmw_microros/rmw_microros.h"
 #include "driver/uart.h"
 
+#include <stdbool.h>
+#include <stdint.h>
+
 
 rcl_publisher_t imu_pub;
 rcl_publisher_t mag_pub;
@@ -37,6 +40,41 @@ static sensor_msgs__msg__MagneticField mag_msg;
 #define RCCHECK(fn) { rcl_ret_t _rc = fn; if(_rc != RCL_RET_OK) { printf("RCL error %d at line %d\n",(int)_rc,__LINE__); goto cleanup; } }
 #define RCSOFTCHECK(fn) { rcl_ret_t _rc = fn; if(_rc != RCL_RET_OK) { printf("RCL soft error %d at line %d\n",(int)_rc,__LINE__); } }
 
+#define UROS_SYNC_TIMEOUT_MS    1000
+#define UROS_RESYNC_PERIOD_MS   10000
+
+static bool g_time_synced = false;
+static TickType_t g_last_sync_tick = 0;
+
+static void sync_uros_time(void)
+{
+    rmw_ret_t rc = rmw_uros_sync_session(UROS_SYNC_TIMEOUT_MS);
+    if (rc == RMW_RET_OK && rmw_uros_epoch_synchronized()) {
+        g_time_synced = true;
+        g_last_sync_tick = xTaskGetTickCount();
+        printf("micro-ROS time sync OK\n");
+    } else {
+        g_time_synced = false;
+        printf("micro-ROS time sync FAILED\n");
+    }
+}
+
+static bool fill_ros_stamp(builtin_interfaces__msg__Time *stamp)
+{
+    if (!rmw_uros_epoch_synchronized()) {
+        return false;
+    }
+
+    int64_t t_ns = rmw_uros_epoch_nanos();
+    if (t_ns <= 0) {
+        return false;
+    }
+
+    stamp->sec = (int32_t)(t_ns / 1000000000LL);
+    stamp->nanosec = (uint32_t)(t_ns % 1000000000LL);
+    return true;
+}
+
 /* Timer callback: publishes IMU data */
 static void timer_callback(rcl_timer_t * timer, int64_t last_call_time) {
     (void) timer;
@@ -45,8 +83,6 @@ static void timer_callback(rcl_timer_t * timer, int64_t last_call_time) {
 
     if (xQueuePeek(imu_queue, &local_data, 0) == pdTRUE) {
         
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
         
         /* Now the sensor_msgs/msg/Imu is populated with the measured values
         *  Note: since the IMU doesnt produce values for the orientation we set the quat values x=y=z=0
@@ -60,9 +96,10 @@ static void timer_callback(rcl_timer_t * timer, int64_t last_call_time) {
 
         imu_msg.orientation_covariance[0] = -1.0;
 
-        imu_msg.header.stamp.sec = ts.tv_sec;
-        imu_msg.header.stamp.nanosec = ts.tv_nsec;
-
+        if (!fill_ros_stamp(&imu_msg.header.stamp)) {
+            return;
+        }
+        
         imu_msg.header.frame_id.data = "imu_link";
         imu_msg.header.frame_id.size = strlen("imu_link");
         imu_msg.header.frame_id.capacity = imu_msg.header.frame_id.size + 1;
@@ -122,6 +159,7 @@ void micro_ros_task(void *pvParameters) {
         RCCHECK(rclc_executor_add_timer(&executor, &timer));
 
         printf("micro-ROS agent connected!\n");
+        sync_uros_time();
 
         /* Check the ROS executor for pending callbacks (timers, subscriptions).
         * Wait up to 10 ms for events, then return to the task loop.
@@ -137,12 +175,18 @@ void micro_ros_task(void *pvParameters) {
                 printf("micro-ROS agent disconnected\n");
                 goto cleanup;
             }
+            TickType_t now = xTaskGetTickCount();
+            if ((now - g_last_sync_tick) > pdMS_TO_TICKS(UROS_RESYNC_PERIOD_MS)) {
+                sync_uros_time();
+            }
+
             vTaskDelay(pdMS_TO_TICKS(10));
         }
 
         cleanup:
             printf("Agent connection failed, retrying in 2s...\n");
             // Clean up before retrying
+            g_time_synced = false;
             RCSOFTCHECK(rcl_publisher_fini(&imu_pub, &node));
             RCSOFTCHECK(rcl_publisher_fini(&mag_pub, &node));
             RCSOFTCHECK(rcl_node_fini(&node));
