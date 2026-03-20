@@ -2,18 +2,19 @@
 #include <driver/uart.h>
 #include <driver/gpio.h>
 
+#include "project_settings.h"
+
 #define UART_TXD  1
 #define UART_RXD  3
 #define UART_RTS  UART_PIN_NO_CHANGE
 #define UART_CTS  UART_PIN_NO_CHANGE
-#define UART_BAUDRATE 115200
 #define UART_BUFFER_SIZE (512)
 
 bool esp32_serial_open(struct uxrCustomTransport * transport){
     size_t * uart_port = (size_t*) transport->args;
 
     uart_config_t uart_config = {
-        .baud_rate = UART_BAUDRATE,
+        .baud_rate = MICROROS_UART_BAUDRATE,
         .data_bits = UART_DATA_8_BITS,
         .parity    = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
