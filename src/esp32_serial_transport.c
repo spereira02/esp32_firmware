@@ -4,10 +4,6 @@
 
 #include "project_settings.h"
 
-#define UART_TXD  1
-#define UART_RXD  3
-#define UART_RTS  UART_PIN_NO_CHANGE
-#define UART_CTS  UART_PIN_NO_CHANGE
 #define UART_BUFFER_SIZE (512)
 
 bool esp32_serial_open(struct uxrCustomTransport * transport){

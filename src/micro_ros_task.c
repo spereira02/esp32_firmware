@@ -40,9 +40,6 @@ static sensor_msgs__msg__MagneticField mag_msg;
 #define RCCHECK(fn) { rcl_ret_t _rc = fn; if(_rc != RCL_RET_OK) { printf("RCL error %d at line %d\n",(int)_rc,__LINE__); goto cleanup; } }
 #define RCSOFTCHECK(fn) { rcl_ret_t _rc = fn; if(_rc != RCL_RET_OK) { printf("RCL soft error %d at line %d\n",(int)_rc,__LINE__); } }
 
-#define UROS_SYNC_TIMEOUT_MS    1000
-#define UROS_RESYNC_PERIOD_MS   10000
-
 static bool g_time_synced = false;
 static TickType_t g_last_sync_tick = 0;
 
